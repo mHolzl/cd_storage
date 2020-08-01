@@ -1,0 +1,33 @@
+{% import "macros.twig" as macros %}
+
+{% include "album_detail_popup.html.twig" %}
+
+<table id="album_list" class="album_list">
+  <thead>
+    <tr>
+      <th class="img"></th>
+      <th class="year">year</th>
+      <th class="artist">artist</th>
+      <th class="album">album</th>
+      <th class="genre">genre(s)</th>
+      <th class="price">price</th>
+      <th class="ranking">ranking</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for i in range(1,6) %} 
+      {##### it's a demo - and we need more data #####}
+      {% for album in albums_list %}
+      <tr data-album_id={{album.album_id}}>
+        <td class="img"><img src="images/album_images/{{album.album_id}}s.jpg" alt="" title="" /></td>
+        <td class="year">{{ album.released|date("Y") }}</td>
+        <td class="artist">{{ album.artist_name }}</td>
+        <td>{{ album.album_name }}</td>
+        <td>{{ macros.genres_list(album.genres) }}</td>
+        <td class="price">{{ album.price|format_currency('CZK') }}</td>
+        <td class="ranking" data-order={{album.ranking}}>{{ macros.star_ranking(album.ranking) }}</td>
+      </tr>
+      {% endfor %}
+    {% endfor %}
+  </tbody>
+</table>

@@ -1,0 +1,16 @@
+{% if album_detail is defined %}
+<div id="popup" class="">
+{% else %}
+<div id="popup" class="display-none">
+{% endif %} 
+  <div id="popup_overlay" class="popup_overlay"></div>
+  <div class="popup_container">
+    <div class="popup_menu">
+      <a id="popup_close" href="#"><i class="fas fa-times"></i></a>
+    </div>
+    <div id="popup_loader" class="popup_loader display-none"><i class="fas fa-compact-disc fa-pulse fa-5x fa-fw"></i></div>
+    <div id="popup_content" class="popup_content display-block">
+    {% include "album_detail.html.twig" %}
+    </div>
+  </div>
+</div>

@@ -1,0 +1,32 @@
+
+{% import "macros.twig" as macros %}
+{% if album_detail is defined %}
+  <p class="detail_image"><img src="images/album_images/{{album_detail.album_id}}l.jpg" alt="" title="" /></p>
+
+  <table class="detail_info">
+    <tr><td colspan="2"><h1>{{ album_detail.album_name }}</h1></td></tr>
+    <tr><td colspan="2"><h2>{{ album_detail.artist_name }}</h2></td></tr>
+    <tr><td>Released:</td><td>{{ album_detail.released|date("M Y") }}</td></tr>
+    <tr><td>Genres:</td><td>{{ macros.genres_list(album_detail.genres) }}</td></tr>
+    <tr><td>Ranking:</td><td class="ranking">{{ macros.star_ranking(album_detail.ranking) }}</td></tr>
+    <tr><td>Price:</td><td>{{ album_detail.price|format_currency('CZK') }}</td></tr>
+  </table>
+
+  <table class="detail_tracklist">
+    <tbody>
+      {% for track in album_detail.tracklist %}
+      <tr>
+        <td>{{ track.order }}</td>
+        <td>
+          {{ track.track_name }}
+          {% if track.artist_id != album.artist_id %}
+          <i>(by {{ track.artist_name }})</i>
+          {% endif %}
+        </td>
+        <td>{{ macros.format_duration(track.duration) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+

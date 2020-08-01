@@ -1,0 +1,50 @@
+
+
+{#####                                        #####}
+{##### generate genre "tags" from genre array #####}
+{#####                                        #####}
+{% macro genres_list(genres) %}
+  {% for genre in genres %}
+    <span class="genre_tag">{{ genre.name }}</span>
+  {% endfor%}
+{% endmacro %}
+
+
+{#####                                         #####}
+{##### generate star ranking from 1 to 5 stars #####}
+{#####                                         #####}
+{% macro star_ranking(ranking) %}
+  <span class="ranking_stars stars-color-{{ ranking }}">
+  {% for i in range(1,5) %}
+    {% if i <= ranking %}
+      <i class="fas fa-star"></i>
+    {% else %}
+      <i class="far fa-star"></i>
+    {% endif %}
+  {% endfor %}
+  </span>
+{% endmacro %}
+
+
+{#####                                                                   #####}
+{##### recalculate duration in sec to "hours : minutes : seconds" format #####}
+{#####                                                                   #####}
+{% macro format_duration(time_in_sec) %}
+  {% set hours = time_in_sec / 3600 % 60 %}
+  {% set minutes = time_in_sec / 60 % 60  ~ ':' %}
+  {% set seconds = time_in_sec % 60 %}
+
+  {% if hours  < 1 %}
+    {% set hours = null %}
+  {% else %}
+    {% set hours = hours|number_format ~ ':' %}
+  {% endif %}
+  
+  {% if seconds < 10 %}
+    {% set seconds = '0' ~ seconds %}
+  {% endif %}
+
+  {{ hours }}{{ minutes }}{{ seconds }}
+{% endmacro %}
+
+

@@ -1,0 +1,77 @@
+@base-color1: rgb(173, 216, 230);
+@base-color2: rgb(35, 85, 130);
+
+* { margin: 0; padding: 0; font-family: "Helvetica Neue",Helvetica,"Nimbus Sans",Arial,sans-serif;}
+h1, h2 {font-weight: normal;}
+header, footer {padding: 5px; margin: 0; background: @base-color1; text-align: center; font-size: 1.4em;}
+header {margin-bottom: 5px;}
+footer {margin-top: 5px;}
+table {
+  thead th, tbody td { text-align: left; vertical-align: middle; }
+}
+
+body div#content{ margin: 10px;}
+
+.float_right {float: right;}
+.float_left {float: left;}
+.display-none {display: none;}
+.display-block {display: block;}
+.genre_tag {display: inline-block; border-radius: 4px; padding: 1px 4px; border: 1px solid @base-color2; background: @base-color1; color: @base-color2; font-size: 0.85em; }
+.genre_tag_printable { border-color: lighten(black, 5%); color: lighten(black, 5%); background: unset; }
+
+.ranking_stars{ white-space: nowrap; font-size: 0.6em; }
+.ranking {
+  .stars-color-1 { color: red}
+  .stars-color-2 { color: darkred;}
+  .stars-color-3 { color: gold;}
+  .stars-color-4 { color: green;}
+  .stars-color-5 { color: darkgreen;}
+}
+
+div.popup_overlay { opacity: 0.5; background: black;  z-index: 10; left: 0; right: 0; top: 0; bottom: 0; position: fixed; }
+div.popup_container {
+  top: 5%; left: 5%; right: 5%; bottom: 5%; z-index: 12; background: white; position: fixed; max-width: 820px; max-height: 670px;  margin: auto; 
+  .popup_menu {
+    position: absolute; right: 20px; top: -18px; display: inline-block; z-index: 15;
+    background: @base-color1; color: @base-color2; border: 3px solid @base-color2; border-radius: 10px; text-align: right;
+    a {color: @base-color2; display: inline-block; text-align: center; padding: 5px 10px;}
+    a:hover {color: @base-color1; background: @base-color2;}
+  }
+  .popup_loader {color: @base-color2; position: fixed; top: 5%; left: 5%; right: 5%; bottom: 5%; max-width: 50px;  max-height: 50px; margin: auto; text-align: center; }
+  .popup_content {position: fixed; top: 5%; left: 5%; right: 5%; bottom: 5%; overflow: scroll; max-width: 800px;  max-height: 650px; margin: auto; padding: 10px; }
+}
+
+.detail_image {display: inline-block; margin-right: 10px; margin-bottom: 10px;}
+.detail_info {
+  display: inline-block; margin-bottom: 10px; vertical-align: top; border-spacing: 0 10px;
+  h1, h2 {max-width: 450px; font-size: 1.5em;}
+  h2 {font-size: 1.3em; font-style: italic;}
+}
+.detail_tracklist {width: 100%; vertical-align: middle;}
+
+.album_list { 
+  border-collapse: collapse; font-size: 1.2em;  
+  thead th, tbody td {  border-bottom: 1px solid @base-color2; padding: 5px 10px; }
+  thead th { padding: 5px 0;}
+
+  tbody{
+    tr:hover {background: lighten(@base-color1, 18%); cursor: pointer;}
+    td.img{
+      padding: 5px; width: 75px; max-width: 75px;
+      img {vertical-align: middle; }
+    }
+    td.year {width: 50px; text-align: center;}
+    td.price {width: 75px;}
+    td.ranking {width: 75px; }
+  }
+}
+
+
+/*  DATATABLES overide */
+table.dataTable thead .sorting, table.dataTable thead .sorting_asc, table.dataTable thead .sorting_desc, table.dataTable thead .sorting_asc_disabled, table.dataTable thead .sorting_desc_disabled {
+  background-position: center left; padding-left: 20px;
+}
+div.dt-buttons {
+  display: block; width: 100px; margin: auto; float: unset;  position: unset;
+  button{ padding: 0.05em 1em }
+}
