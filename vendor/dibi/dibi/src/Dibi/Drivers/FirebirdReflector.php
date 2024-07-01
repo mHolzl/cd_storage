@@ -38,8 +38,8 @@ class FirebirdReflector implements Dibi\Reflector
 			SELECT TRIM(RDB\$RELATION_NAME),
 				CASE RDB\$VIEW_BLR WHEN NULL THEN 'TRUE' ELSE 'FALSE' END
 			FROM RDB\$RELATIONS
-			WHERE RDB\$SYSTEM_FLAG = 0;"
-		);
+			WHERE RDB\$SYSTEM_FLAG = 0;
+		");
 		$tables = [];
 		while ($row = $res->fetch(false)) {
 			$tables[] = [
@@ -47,6 +47,7 @@ class FirebirdReflector implements Dibi\Reflector
 				'view' => $row[1] === 'TRUE',
 			];
 		}
+
 		return $tables;
 	}
 
@@ -84,9 +85,8 @@ class FirebirdReflector implements Dibi\Reflector
 			FROM RDB\$RELATION_FIELDS r
 				LEFT JOIN RDB\$FIELDS f ON r.RDB\$FIELD_SOURCE = f.RDB\$FIELD_NAME
 			WHERE r.RDB\$RELATION_NAME = '$table'
-			ORDER BY r.RDB\$FIELD_POSITION;"
-
-		);
+			ORDER BY r.RDB\$FIELD_POSITION;
+		");
 		$columns = [];
 		while ($row = $res->fetch(true)) {
 			$key = $row['FIELD_NAME'];
@@ -100,6 +100,7 @@ class FirebirdReflector implements Dibi\Reflector
 				'autoincrement' => false,
 			];
 		}
+
 		return $columns;
 	}
 
@@ -121,8 +122,8 @@ class FirebirdReflector implements Dibi\Reflector
 				LEFT JOIN RDB\$INDICES i ON i.RDB\$INDEX_NAME = s.RDB\$INDEX_NAME
 				LEFT JOIN RDB\$RELATION_CONSTRAINTS r ON r.RDB\$INDEX_NAME = s.RDB\$INDEX_NAME
 			WHERE UPPER(i.RDB\$RELATION_NAME) = '$table'
-			ORDER BY s.RDB\$FIELD_POSITION"
-		);
+			ORDER BY s.RDB\$FIELD_POSITION
+		");
 		$indexes = [];
 		while ($row = $res->fetch(true)) {
 			$key = $row['INDEX_NAME'];
@@ -132,6 +133,7 @@ class FirebirdReflector implements Dibi\Reflector
 			$indexes[$key]['table'] = $table;
 			$indexes[$key]['columns'][$row['FIELD_POSITION']] = $row['FIELD_NAME'];
 		}
+
 		return $indexes;
 	}
 
@@ -149,8 +151,8 @@ class FirebirdReflector implements Dibi\Reflector
 				LEFT JOIN RDB\$RELATION_CONSTRAINTS r ON r.RDB\$INDEX_NAME = s.RDB\$INDEX_NAME
 			WHERE UPPER(i.RDB\$RELATION_NAME) = '$table'
 				AND r.RDB\$CONSTRAINT_TYPE = 'FOREIGN KEY'
-			ORDER BY s.RDB\$FIELD_POSITION"
-		);
+			ORDER BY s.RDB\$FIELD_POSITION
+		");
 		$keys = [];
 		while ($row = $res->fetch(true)) {
 			$key = $row['INDEX_NAME'];
@@ -160,6 +162,7 @@ class FirebirdReflector implements Dibi\Reflector
 				'table' => $table,
 			];
 		}
+
 		return $keys;
 	}
 
@@ -174,12 +177,13 @@ class FirebirdReflector implements Dibi\Reflector
 			FROM RDB\$INDICES
 			WHERE RDB\$RELATION_NAME = UPPER('$table')
 				AND RDB\$UNIQUE_FLAG IS NULL
-				AND RDB\$FOREIGN_KEY IS NULL;"
-		);
+				AND RDB\$FOREIGN_KEY IS NULL;
+		");
 		$indices = [];
 		while ($row = $res->fetch(false)) {
 			$indices[] = $row[0];
 		}
+
 		return $indices;
 	}
 
@@ -196,12 +200,13 @@ class FirebirdReflector implements Dibi\Reflector
 				AND (
 					RDB\$UNIQUE_FLAG IS NOT NULL
 					OR RDB\$FOREIGN_KEY IS NOT NULL
-			);"
-		);
+			);
+		");
 		$constraints = [];
 		while ($row = $res->fetch(false)) {
 			$constraints[] = $row[0];
 		}
+
 		return $constraints;
 	}
 
@@ -210,9 +215,10 @@ class FirebirdReflector implements Dibi\Reflector
 	 * Returns metadata for all triggers in a table or database.
 	 * (Only if user has permissions on ALTER TABLE, INSERT/UPDATE/DELETE record in table)
 	 */
-	public function getTriggersMeta(string $table = null): array
+	public function getTriggersMeta(?string $table = null): array
 	{
-		$res = $this->driver->query("
+		$res = $this->driver->query(
+			"
 			SELECT TRIM(RDB\$TRIGGER_NAME) AS TRIGGER_NAME,
 				TRIM(RDB\$RELATION_NAME) AS TABLE_NAME,
 				CASE RDB\$TRIGGER_TYPE
@@ -248,6 +254,7 @@ class FirebirdReflector implements Dibi\Reflector
 				'enabled' => trim($row['TRIGGER_ENABLED']) === 'TRUE',
 			];
 		}
+
 		return $triggers;
 	}
 
@@ -256,18 +263,21 @@ class FirebirdReflector implements Dibi\Reflector
 	 * Returns list of triggers for given table.
 	 * (Only if user has permissions on ALTER TABLE, INSERT/UPDATE/DELETE record in table)
 	 */
-	public function getTriggers(string $table = null): array
+	public function getTriggers(?string $table = null): array
 	{
 		$q = 'SELECT TRIM(RDB$TRIGGER_NAME)
 			FROM RDB$TRIGGERS
 			WHERE RDB$SYSTEM_FLAG = 0';
-		$q .= $table === null ? ';' : " AND RDB\$RELATION_NAME = UPPER('$table')";
+		$q .= $table === null
+			? ';'
+			: " AND RDB\$RELATION_NAME = UPPER('$table')";
 
 		$res = $this->driver->query($q);
 		$triggers = [];
 		while ($row = $res->fetch(false)) {
 			$triggers[] = $row[0];
 		}
+
 		return $triggers;
 	}
 
@@ -307,8 +317,8 @@ class FirebirdReflector implements Dibi\Reflector
 				p.RDB\$PARAMETER_NUMBER AS PARAMETER_NUMBER
 			FROM RDB\$PROCEDURE_PARAMETERS p
 				LEFT JOIN RDB\$FIELDS f ON f.RDB\$FIELD_NAME = p.RDB\$FIELD_SOURCE
-			ORDER BY p.RDB\$PARAMETER_TYPE, p.RDB\$PARAMETER_NUMBER;"
-		);
+			ORDER BY p.RDB\$PARAMETER_TYPE, p.RDB\$PARAMETER_NUMBER;
+		");
 		$procedures = [];
 		while ($row = $res->fetch(true)) {
 			$key = $row['PROCEDURE_NAME'];
@@ -319,6 +329,7 @@ class FirebirdReflector implements Dibi\Reflector
 			$procedures[$key]['params'][$io][$num]['type'] = trim($row['FIELD_TYPE']);
 			$procedures[$key]['params'][$io][$num]['size'] = $row['FIELD_LENGTH'];
 		}
+
 		return $procedures;
 	}
 
@@ -330,12 +341,13 @@ class FirebirdReflector implements Dibi\Reflector
 	{
 		$res = $this->driver->query('
 			SELECT TRIM(RDB$PROCEDURE_NAME)
-			FROM RDB$PROCEDURES;'
-		);
+			FROM RDB$PROCEDURES;
+		');
 		$procedures = [];
 		while ($row = $res->fetch(false)) {
 			$procedures[] = $row[0];
 		}
+
 		return $procedures;
 	}
 
@@ -348,12 +360,13 @@ class FirebirdReflector implements Dibi\Reflector
 		$res = $this->driver->query('
 			SELECT TRIM(RDB$GENERATOR_NAME)
 			FROM RDB$GENERATORS
-			WHERE RDB$SYSTEM_FLAG = 0;'
-		);
+			WHERE RDB$SYSTEM_FLAG = 0;
+		');
 		$generators = [];
 		while ($row = $res->fetch(false)) {
 			$generators[] = $row[0];
 		}
+
 		return $generators;
 	}
 
@@ -366,12 +379,13 @@ class FirebirdReflector implements Dibi\Reflector
 		$res = $this->driver->query('
 			SELECT TRIM(RDB$FUNCTION_NAME)
 			FROM RDB$FUNCTIONS
-			WHERE RDB$SYSTEM_FLAG = 0;'
-		);
+			WHERE RDB$SYSTEM_FLAG = 0;
+		');
 		$functions = [];
 		while ($row = $res->fetch(false)) {
 			$functions[] = $row[0];
 		}
+
 		return $functions;
 	}
 }

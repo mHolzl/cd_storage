@@ -28,6 +28,9 @@ class Connection implements IConnection
 	/** @var array  Current connection configuration */
 	private $config;
 
+	/** @var string[]  resultset formats */
+	private $formats;
+
 	/** @var Driver|null */
 	private $driver;
 
@@ -37,17 +40,26 @@ class Connection implements IConnection
 	/** @var HashMap Substitutes for identifiers */
 	private $substitutes;
 
+	private $transactionDepth = 0;
+
 
 	/**
 	 * Connection options: (see driver-specific options too)
 	 *   - lazy (bool) => if true, connection will be established only when required
 	 *   - result (array) => result set options
-	 *       - formatDateTime => date-time format (if empty, DateTime objects will be returned)
-	 *       - formatJson => json format (
-	 *           "string" for leaving value as is,
-	 *           "object" for decoding json as \stdClass,
-	 *           "array" for decoding json as an array - default
-	 *       )
+	 *       - normalize => normalizes result fields (default: true)
+	 *       - formatDateTime => date-time format
+	 *           empty for decoding as Dibi\DateTime (default)
+	 *           "..." formatted according to given format, see https://www.php.net/manual/en/datetime.format.php
+	 *           "native" for leaving value as is
+	 *       - formatTimeInterval => time-interval format
+	 *           empty for decoding as DateInterval (default)
+	 *           "..." formatted according to given format, see https://www.php.net/manual/en/dateinterval.format.php
+	 *           "native" for leaving value as is
+	 *       - formatJson => json format
+	 *           "array" for decoding json as an array (default)
+	 *           "object" for decoding json as \stdClass
+	 *           "native" for leaving value as is
 	 *   - profiler (array)
 	 *       - run (bool) => enable profiler?
 	 *       - file => file to log
@@ -56,7 +68,7 @@ class Connection implements IConnection
 	 *   - onConnect (array) => list of SQL queries to execute (by Connection::query()) after connection is established
 	 * @throws Exception
 	 */
-	public function __construct(array $config, string $name = null)
+	public function __construct(array $config, ?string $name = null)
 	{
 		Helpers::alias($config, 'username', 'user');
 		Helpers::alias($config, 'password', 'pass');
@@ -65,8 +77,14 @@ class Connection implements IConnection
 		Helpers::alias($config, 'result|formatDateTime', 'resultDateTime');
 		$config['driver'] = $config['driver'] ?? 'mysqli';
 		$config['name'] = $name;
-		$config['result']['formatJson'] = $config['result']['formatJson'] ?? 'array';
 		$this->config = $config;
+
+		$this->formats = [
+			Type::DATE => $this->config['result']['formatDate'],
+			Type::DATETIME => $this->config['result']['formatDateTime'],
+			Type::JSON => $this->config['result']['formatJson'] ?? 'array',
+			Type::TIME_INTERVAL => $this->config['result']['formatTimeInterval'] ?? null,
+		];
 
 		// profiler
 		if (isset($config['profiler']['file']) && (!isset($config['profiler']['run']) || $config['profiler']['run'])) {
@@ -132,16 +150,17 @@ class Connection implements IConnection
 			if ($event) {
 				$this->onEvent($event->done());
 			}
+
 			if (isset($this->config['onConnect'])) {
 				foreach ($this->config['onConnect'] as $sql) {
 					$this->query($sql);
 				}
 			}
-
 		} catch (DriverException $e) {
 			if ($event) {
 				$this->onEvent($event->done($e));
 			}
+
 			throw $e;
 		}
 	}
@@ -173,7 +192,7 @@ class Connection implements IConnection
 	 * @see self::__construct
 	 * @return mixed
 	 */
-	final public function getConfig(string $key = null, $default = null)
+	final public function getConfig(?string $key = null, $default = null)
 	{
 		return $key === null
 			? $this->config
@@ -189,6 +208,7 @@ class Connection implements IConnection
 		if (!$this->driver) {
 			$this->connect();
 		}
+
 		return $this->driver;
 	}
 
@@ -200,7 +220,7 @@ class Connection implements IConnection
 	 */
 	final public function query(...$args): Result
 	{
-		return $this->nativeQuery($this->translateArgs($args));
+		return $this->nativeQuery($this->translate(...$args));
 	}
 
 
@@ -211,7 +231,11 @@ class Connection implements IConnection
 	 */
 	final public function translate(...$args): string
 	{
-		return $this->translateArgs($args);
+		if (!$this->driver) {
+			$this->connect();
+		}
+
+		return (clone $this->translator)->translate($args);
 	}
 
 
@@ -222,7 +246,7 @@ class Connection implements IConnection
 	final public function test(...$args): bool
 	{
 		try {
-			Helpers::dump($this->translateArgs($args));
+			Helpers::dump($this->translate(...$args));
 			return true;
 
 		} catch (Exception $e) {
@@ -231,6 +255,7 @@ class Connection implements IConnection
 			} else {
 				echo get_class($e) . ': ' . $e->getMessage() . (PHP_SAPI === 'cli' ? "\n" : '<br>');
 			}
+
 			return false;
 		}
 	}
@@ -243,19 +268,7 @@ class Connection implements IConnection
 	 */
 	final public function dataSource(...$args): DataSource
 	{
-		return new DataSource($this->translateArgs($args), $this);
-	}
-
-
-	/**
-	 * Generates SQL query.
-	 */
-	protected function translateArgs(array $args): string
-	{
-		if (!$this->driver) {
-			$this->connect();
-		}
-		return (clone $this->translator)->translate($args);
+		return new DataSource($this->translate(...$args), $this);
 	}
 
 
@@ -278,6 +291,7 @@ class Connection implements IConnection
 			if ($event) {
 				$this->onEvent($event->done($e));
 			}
+
 			throw $e;
 		}
 
@@ -285,6 +299,7 @@ class Connection implements IConnection
 		if ($event) {
 			$this->onEvent($event->done($res));
 		}
+
 		return $res;
 	}
 
@@ -298,10 +313,12 @@ class Connection implements IConnection
 		if (!$this->driver) {
 			$this->connect();
 		}
+
 		$rows = $this->driver->getAffectedRows();
 		if ($rows === null || $rows < 0) {
 			throw new Exception('Cannot retrieve number of affected rows.');
 		}
+
 		return $rows;
 	}
 
@@ -310,15 +327,17 @@ class Connection implements IConnection
 	 * Retrieves the ID generated for an AUTO_INCREMENT column by the previous INSERT query.
 	 * @throws Exception
 	 */
-	public function getInsertId(string $sequence = null): int
+	public function getInsertId(?string $sequence = null): int
 	{
 		if (!$this->driver) {
 			$this->connect();
 		}
+
 		$id = $this->driver->getInsertId($sequence);
 		if ($id === null) {
 			throw new Exception('Cannot retrieve last generated ID.');
 		}
+
 		return $id;
 	}
 
@@ -326,22 +345,27 @@ class Connection implements IConnection
 	/**
 	 * Begins a transaction (if supported).
 	 */
-	public function begin(string $savepoint = null): void
+	public function begin(?string $savepoint = null): void
 	{
+		if ($this->transactionDepth !== 0) {
+			throw new \LogicException(__METHOD__ . '() call is forbidden inside a transaction() callback');
+		}
+
 		if (!$this->driver) {
 			$this->connect();
 		}
+
 		$event = $this->onEvent ? new Event($this, Event::BEGIN, $savepoint) : null;
 		try {
 			$this->driver->begin($savepoint);
 			if ($event) {
 				$this->onEvent($event->done());
 			}
-
 		} catch (DriverException $e) {
 			if ($event) {
 				$this->onEvent($event->done($e));
 			}
+
 			throw $e;
 		}
 	}
@@ -350,22 +374,27 @@ class Connection implements IConnection
 	/**
 	 * Commits statements in a transaction.
 	 */
-	public function commit(string $savepoint = null): void
+	public function commit(?string $savepoint = null): void
 	{
+		if ($this->transactionDepth !== 0) {
+			throw new \LogicException(__METHOD__ . '() call is forbidden inside a transaction() callback');
+		}
+
 		if (!$this->driver) {
 			$this->connect();
 		}
+
 		$event = $this->onEvent ? new Event($this, Event::COMMIT, $savepoint) : null;
 		try {
 			$this->driver->commit($savepoint);
 			if ($event) {
 				$this->onEvent($event->done());
 			}
-
 		} catch (DriverException $e) {
 			if ($event) {
 				$this->onEvent($event->done($e));
 			}
+
 			throw $e;
 		}
 	}
@@ -374,24 +403,59 @@ class Connection implements IConnection
 	/**
 	 * Rollback changes in a transaction.
 	 */
-	public function rollback(string $savepoint = null): void
+	public function rollback(?string $savepoint = null): void
 	{
+		if ($this->transactionDepth !== 0) {
+			throw new \LogicException(__METHOD__ . '() call is forbidden inside a transaction() callback');
+		}
+
 		if (!$this->driver) {
 			$this->connect();
 		}
+
 		$event = $this->onEvent ? new Event($this, Event::ROLLBACK, $savepoint) : null;
 		try {
 			$this->driver->rollback($savepoint);
 			if ($event) {
 				$this->onEvent($event->done());
 			}
-
 		} catch (DriverException $e) {
 			if ($event) {
 				$this->onEvent($event->done($e));
 			}
+
 			throw $e;
 		}
+	}
+
+
+	/**
+	 * @return mixed
+	 */
+	public function transaction(callable $callback)
+	{
+		if ($this->transactionDepth === 0) {
+			$this->begin();
+		}
+
+		$this->transactionDepth++;
+		try {
+			$res = $callback($this);
+		} catch (\Throwable $e) {
+			$this->transactionDepth--;
+			if ($this->transactionDepth === 0) {
+				$this->rollback();
+			}
+
+			throw $e;
+		}
+
+		$this->transactionDepth--;
+		if ($this->transactionDepth === 0) {
+			$this->commit();
+		}
+
+		return $res;
 	}
 
 
@@ -400,10 +464,8 @@ class Connection implements IConnection
 	 */
 	public function createResultSet(ResultDriver $resultDriver): Result
 	{
-		$res = new Result($resultDriver);
-		return $res->setFormat(Type::DATE, $this->config['result']['formatDate'])
-			->setFormat(Type::DATETIME, $this->config['result']['formatDateTime'])
-			->setFormat(Type::JSON, $this->config['result']['formatJson']);
+		return (new Result($resultDriver, $this->config['result']['normalize'] ?? true))
+			->setFormats($this->formats);
 	}
 
 
@@ -436,6 +498,7 @@ class Connection implements IConnection
 		if ($args instanceof Traversable) {
 			$args = iterator_to_array($args);
 		}
+
 		return $this->command()->insert()
 			->into('%n', $table, '(%n)', array_keys($args))->values('%l', $args);
 	}
@@ -539,7 +602,7 @@ class Connection implements IConnection
 	 * @param  callable  $onProgress  function (int $count, ?float $percent): void
 	 * @return int  count of sql commands
 	 */
-	public function loadFile(string $file, callable $onProgress = null): int
+	public function loadFile(string $file, ?callable $onProgress = null): int
 	{
 		return Helpers::loadFromFile($this, $file, $onProgress);
 	}
@@ -553,6 +616,7 @@ class Connection implements IConnection
 		if (!$this->driver) {
 			$this->connect();
 		}
+
 		return new Reflection\Database($this->driver->getReflector(), $this->config['database'] ?? null);
 	}
 
@@ -562,7 +626,7 @@ class Connection implements IConnection
 	 */
 	public function __wakeup()
 	{
-		throw new NotSupportedException('You cannot serialize or unserialize ' . get_class($this) . ' instances.');
+		throw new NotSupportedException('You cannot serialize or unserialize ' . static::class . ' instances.');
 	}
 
 
@@ -571,7 +635,7 @@ class Connection implements IConnection
 	 */
 	public function __sleep()
 	{
-		throw new NotSupportedException('You cannot serialize or unserialize ' . get_class($this) . ' instances.');
+		throw new NotSupportedException('You cannot serialize or unserialize ' . static::class . ' instances.');
 	}
 
 

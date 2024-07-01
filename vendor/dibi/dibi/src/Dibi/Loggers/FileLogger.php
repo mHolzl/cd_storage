@@ -29,7 +29,7 @@ class FileLogger
 	private $errorsOnly;
 
 
-	public function __construct(string $file, int $filter = null, bool $errorsOnly = false)
+	public function __construct(string $file, ?int $filter = null, bool $errorsOnly = false)
 	{
 		$this->file = $file;
 		$this->filter = $filter ?: Dibi\Event::QUERY;
@@ -54,6 +54,7 @@ class FileLogger
 			if ($code = $event->result->getCode()) {
 				$message = "[$code] $message";
 			}
+
 			$this->writeToFile(
 				$event,
 				"ERROR: $message"
@@ -73,8 +74,9 @@ class FileLogger
 
 	private function writeToFile(Dibi\Event $event, string $message): void
 	{
+		$driver = $event->connection->getConfig('driver');
 		$message .=
-			"\n-- driver: " . $event->connection->getConfig('driver') . '/' . $event->connection->getConfig('name')
+			"\n-- driver: " . (is_object($driver) ? get_class($driver) : $driver) . '/' . $event->connection->getConfig('name')
 			. "\n-- " . date('Y-m-d H:i:s')
 			. "\n\n";
 		file_put_contents($this->file, $message, FILE_APPEND | LOCK_EX);

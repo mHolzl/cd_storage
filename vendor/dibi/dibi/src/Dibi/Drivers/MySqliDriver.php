@@ -72,7 +72,7 @@ class MySqliDriver implements Dibi\Driver
 				$host = ini_get('mysqli.default_host');
 				if ($host) {
 					$config['host'] = $host;
-					$config['port'] = ini_get('mysqli.default_port');
+					$config['port'] = (int) ini_get('mysqli.default_port');
 				} else {
 					$config['host'] = null;
 					$config['port'] = null;
@@ -88,6 +88,7 @@ class MySqliDriver implements Dibi\Driver
 					$this->connection->options($key, $value);
 				}
 			}
+
 			@$this->connection->real_connect( // intentionally @
 				(empty($config['persistent']) ? '' : 'p:') . $config['host'],
 				$config['username'],
@@ -131,6 +132,15 @@ class MySqliDriver implements Dibi\Driver
 
 
 	/**
+	 * Pings a server connection, or tries to reconnect if the connection has gone down.
+	 */
+	public function ping(): bool
+	{
+		return $this->connection->ping();
+	}
+
+
+	/**
 	 * Executes the SQL query.
 	 * @throws Dibi\DriverException
 	 */
@@ -144,10 +154,14 @@ class MySqliDriver implements Dibi\Driver
 		} elseif ($res instanceof \mysqli_result) {
 			return $this->createResultDriver($res);
 		}
+
 		return null;
 	}
 
 
+	/**
+	 * @param int|string $code
+	 */
 	public static function createException(string $message, $code, string $sql): Dibi\DriverException
 	{
 		if (in_array($code, [1216, 1217, 1451, 1452, 1701], true)) {
@@ -179,6 +193,7 @@ class MySqliDriver implements Dibi\Driver
 		foreach ($matches as $m) {
 			$res[$m[1]] = (int) $m[2];
 		}
+
 		return $res;
 	}
 
@@ -188,7 +203,9 @@ class MySqliDriver implements Dibi\Driver
 	 */
 	public function getAffectedRows(): ?int
 	{
-		return $this->connection->affected_rows === -1 ? null : $this->connection->affected_rows;
+		return $this->connection->affected_rows === -1
+			? null
+			: $this->connection->affected_rows;
 	}
 
 
@@ -205,7 +222,7 @@ class MySqliDriver implements Dibi\Driver
 	 * Begins a transaction (if supported).
 	 * @throws Dibi\DriverException
 	 */
-	public function begin(string $savepoint = null): void
+	public function begin(?string $savepoint = null): void
 	{
 		$this->query($savepoint ? "SAVEPOINT $savepoint" : 'START TRANSACTION');
 	}
@@ -215,7 +232,7 @@ class MySqliDriver implements Dibi\Driver
 	 * Commits statements in a transaction.
 	 * @throws Dibi\DriverException
 	 */
-	public function commit(string $savepoint = null): void
+	public function commit(?string $savepoint = null): void
 	{
 		$this->query($savepoint ? "RELEASE SAVEPOINT $savepoint" : 'COMMIT');
 	}
@@ -225,7 +242,7 @@ class MySqliDriver implements Dibi\Driver
 	 * Rollback changes in a transaction.
 	 * @throws Dibi\DriverException
 	 */
-	public function rollback(string $savepoint = null): void
+	public function rollback(?string $savepoint = null): void
 	{
 		$this->query($savepoint ? "ROLLBACK TO SAVEPOINT $savepoint" : 'ROLLBACK');
 	}
@@ -236,7 +253,11 @@ class MySqliDriver implements Dibi\Driver
 	 */
 	public function getResource(): ?\mysqli
 	{
-		return @$this->connection->thread_id ? $this->connection : null;
+		try {
+			return @$this->connection->thread_id ? $this->connection : null;
+		} catch (\Throwable $e) {
+			return null;
+		}
 	}
 
 
@@ -305,7 +326,8 @@ class MySqliDriver implements Dibi\Driver
 		if ($value->y || $value->m || $value->d) {
 			throw new Dibi\NotSupportedException('Only time interval is supported.');
 		}
-		return $value->format('%r%H:%I:%S.%f');
+
+		return $value->format("'%r%H:%I:%S.%f'");
 	}
 
 

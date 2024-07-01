@@ -44,6 +44,7 @@ class SqliteReflector implements Dibi\Reflector
 		while ($row = $res->fetch(true)) {
 			$tables[] = $row;
 		}
+
 		return $tables;
 	}
 
@@ -64,12 +65,13 @@ class SqliteReflector implements Dibi\Reflector
 				'fullname' => "$table.$column",
 				'nativetype' => strtoupper($type[0]),
 				'size' => isset($type[1]) ? (int) $type[1] : null,
-				'nullable' => $row['notnull'] == '0',
+				'nullable' => $row['notnull'] === 0,
 				'default' => $row['dflt_value'],
 				'autoincrement' => $row['pk'] && $type[0] === 'INTEGER',
 				'vendor' => $row,
 			];
 		}
+
 		return $columns;
 	}
 
@@ -98,13 +100,15 @@ class SqliteReflector implements Dibi\Reflector
 			$column = $indexes[$index]['columns'][0];
 			$primary = false;
 			foreach ($columns as $info) {
-				if ($column == $info['name']) {
+				if ($column === $info['name']) {
 					$primary = $info['vendor']['pk'];
 					break;
 				}
 			}
+
 			$indexes[$index]['primary'] = (bool) $primary;
 		}
+
 		if (!$indexes) { // @see http://www.sqlite.org/lang_createtable.html#rowid
 			foreach ($columns as $column) {
 				if ($column['vendor']['pk']) {
@@ -142,6 +146,7 @@ class SqliteReflector implements Dibi\Reflector
 				$keys[$row['id']]['foreign'] = null;
 			}
 		}
+
 		return array_values($keys);
 	}
 }

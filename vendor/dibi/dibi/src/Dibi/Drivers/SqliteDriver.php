@@ -57,7 +57,7 @@ class SqliteDriver implements Dibi\Driver
 		} else {
 			try {
 				$this->connection = new SQLite3($config['database']);
-			} catch (\Exception $e) {
+			} catch (\Throwable $e) {
 				throw new Dibi\DriverException($e->getMessage(), $e->getCode());
 			}
 		}
@@ -92,6 +92,7 @@ class SqliteDriver implements Dibi\Driver
 		} elseif ($res instanceof \SQLite3Result && $res->numColumns()) {
 			return $this->createResultDriver($res);
 		}
+
 		return null;
 	}
 
@@ -145,7 +146,7 @@ class SqliteDriver implements Dibi\Driver
 	 * Begins a transaction (if supported).
 	 * @throws Dibi\DriverException
 	 */
-	public function begin(string $savepoint = null): void
+	public function begin(?string $savepoint = null): void
 	{
 		$this->query($savepoint ? "SAVEPOINT $savepoint" : 'BEGIN');
 	}
@@ -155,7 +156,7 @@ class SqliteDriver implements Dibi\Driver
 	 * Commits statements in a transaction.
 	 * @throws Dibi\DriverException
 	 */
-	public function commit(string $savepoint = null): void
+	public function commit(?string $savepoint = null): void
 	{
 		$this->query($savepoint ? "RELEASE SAVEPOINT $savepoint" : 'COMMIT');
 	}
@@ -165,7 +166,7 @@ class SqliteDriver implements Dibi\Driver
 	 * Rollback changes in a transaction.
 	 * @throws Dibi\DriverException
 	 */
-	public function rollback(string $savepoint = null): void
+	public function rollback(?string $savepoint = null): void
 	{
 		$this->query($savepoint ? "ROLLBACK TO SAVEPOINT $savepoint" : 'ROLLBACK');
 	}
@@ -286,7 +287,12 @@ class SqliteDriver implements Dibi\Driver
 	/**
 	 * Registers an aggregating user defined function for use in SQL statements.
 	 */
-	public function registerAggregateFunction(string $name, callable $rowCallback, callable $agrCallback, int $numArgs = -1): void
+	public function registerAggregateFunction(
+		string $name,
+		callable $rowCallback,
+		callable $agrCallback,
+		int $numArgs = -1
+	): void
 	{
 		$this->connection->createAggregate($name, $rowCallback, $agrCallback, $numArgs);
 	}

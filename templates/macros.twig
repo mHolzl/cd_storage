@@ -3,9 +3,9 @@
 {#####                                        #####}
 {##### generate genre "tags" from genre array #####}
 {#####                                        #####}
-{% macro genres_list(genres) %}
-  {% for genre in genres %}
-    <span class="genre_tag">{{ genre.name }}</span>
+{% macro tag_list(tags) %}
+  {% for tag in tags %}
+    <span class="genre_tag {{ tag.css_class }}" title=" {{ tag.name }}"><i class="{{ tag.fa_icon  }}"></i> {{ tag.name_ua }}</span>
   {% endfor%}
 {% endmacro %}
 
@@ -25,26 +25,5 @@
   </span>
 {% endmacro %}
 
-
-{#####                                                                   #####}
-{##### recalculate duration in sec to "hours : minutes : seconds" format #####}
-{#####                                                                   #####}
-{% macro format_duration(time_in_sec) %}
-  {% set hours = time_in_sec / 3600 % 60 %}
-  {% set minutes = time_in_sec / 60 % 60  ~ ':' %}
-  {% set seconds = time_in_sec % 60 %}
-
-  {% if hours  < 1 %}
-    {% set hours = null %}
-  {% else %}
-    {% set hours = hours|number_format ~ ':' %}
-  {% endif %}
-  
-  {% if seconds < 10 %}
-    {% set seconds = '0' ~ seconds %}
-  {% endif %}
-
-  {{ hours }}{{ minutes }}{{ seconds }}
-{% endmacro %}
 
 

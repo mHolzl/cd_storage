@@ -9,15 +9,42 @@ footer {margin-top: 5px;}
 table {
   thead th, tbody td { text-align: left; vertical-align: middle; }
 }
-
-body div#content{ margin: 10px;}
+body {
+  background: url(/images/energoprom_medical_alpha.png) center bottom no-repeat;
+  background-size: contain;
+  background-attachment: fixed;
+}
+/*
+.background-wrap { overflow: hidden; position: relative;
+  .background-img { position: absolute; opacity: 0.4; left: 0; top: 0; width: 90%; height: auto;}
+}
+*/
+body div#content{ /*position: relative;*/ 
+  margin: 10px;   
+}
 
 .float_right {float: right;}
 .float_left {float: left;}
 .display-none {display: none;}
 .display-block {display: block;}
-.genre_tag {display: inline-block; border-radius: 4px; padding: 1px 4px; border: 1px solid @base-color2; background: @base-color1; color: @base-color2; font-size: 0.85em; }
-.genre_tag_printable { border-color: lighten(black, 5%); color: lighten(black, 5%); background: unset; }
+.genre_tag {
+  display: inline-block; border-radius: 4px;  margin: 2px; padding: 1px 4px; border: 1px solid @base-color2; background: @base-color1; color: @base-color2; font-size: 1em; opacity: 0.75;
+}
+.blooddonor {color: rgb(165, 54, 54); background: rgb(238, 139, 139);}
+.unwanted, .troublemaker {color: rgb(109, 5, 5); background: rgb(248, 4, 4);}
+.vip, .favor {color: rgb(17, 95, 10); background: rgb(118, 199, 125);}
+.restricted {color: rgb(32, 32, 31); background: rgb(245, 145, 31);}
+.irradiated {color: rgb(110, 86, 5); background: rgb(233, 196, 96);}
+.anomaly {color: rgb(0, 0, 0); background: rgb(166, 122, 248);}
+.biohazard {color: rgb(0, 0, 0); background: rgb(5, 255, 101);}
+.drug {color: rgb(209, 26, 179); background: rgb(108, 247, 240);}
+
+
+.male {color: rgb(8, 8, 143); font-size: 1.5em;}
+.female {color: rgb(105, 4, 4); font-size: 1.5em;}
+
+
+.genre_tag_printable { border-color: lighten(black, 5%) !important; color: lighten(black, 5%) !important; background: unset !important; }
 
 .ranking_stars{ white-space: nowrap; font-size: 0.6em; }
 .ranking {
@@ -41,28 +68,36 @@ div.popup_container {
   .popup_content {position: fixed; top: 5%; left: 5%; right: 5%; bottom: 5%; overflow: scroll; max-width: 800px;  max-height: 650px; margin: auto; padding: 10px; }
 }
 
-.detail_image {display: inline-block; margin-right: 10px; margin-bottom: 10px;}
+.detail_image {
+  display: inline-block; margin-right: 10px; margin-bottom: 10px;
+  img {min-height: 300px; width: 300px; max-width: 300px;  background: url('/images/patient_photos/no-photo.jpg');}
+}
 .detail_info {
-  display: inline-block; margin-bottom: 10px; vertical-align: top; border-spacing: 0 10px;
+  
+  display: inline-block; max-width: 460px; margin-bottom: 10px; vertical-align: top; border-spacing: 0 10px;
   h1, h2 {max-width: 450px; font-size: 1.5em;}
-  h2 {font-size: 1.3em; font-style: italic;}
+  h2 {font-size: 1.3em;}
+  td.label {width: 125px;}
 }
 .detail_tracklist {width: 100%; vertical-align: middle;}
 
-.album_list { 
+.patient_list { 
   border-collapse: collapse; font-size: 1.2em;  
   thead th, tbody td {  border-bottom: 1px solid @base-color2; padding: 5px 10px; }
   thead th { padding: 5px 0;}
 
   tbody{
-    tr:hover {background: lighten(@base-color1, 18%); cursor: pointer;}
-    td.img{
+    tr:hover {background: lighten(@base-color1, 18%); cursor: pointer; opacity: 90%;}
+    td.gender{
       padding: 5px; width: 75px; max-width: 75px;
+      span {display: none;}
       img {vertical-align: middle; }
     }
-    td.year {width: 50px; text-align: center;}
-    td.price {width: 75px;}
+    td.gender {width: 75px;  text-align: center;}
+    td.age {width: 50px; text-align: center; }
+    td.bloodtype {width: 125px; text-align: center; }
     td.ranking {width: 75px; }
+
   }
 }
 
@@ -71,7 +106,9 @@ div.popup_container {
 table.dataTable thead .sorting, table.dataTable thead .sorting_asc, table.dataTable thead .sorting_desc, table.dataTable thead .sorting_asc_disabled, table.dataTable thead .sorting_desc_disabled {
   background-position: center left; padding-left: 20px;
 }
+table.dataTable tbody tr { background-color: unset;  }
+
 div.dt-buttons {
-  display: block; width: 100px; margin: auto; float: unset;  position: unset;
-  button{ padding: 0.05em 1em }
+  display: block; width: 300px; margin: auto; float: unset;  position: unset;
+  button{ display: inline-block; padding: 0.05em 1em; }
 }

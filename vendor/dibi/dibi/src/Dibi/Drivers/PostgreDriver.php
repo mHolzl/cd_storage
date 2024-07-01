@@ -11,6 +11,7 @@ namespace Dibi\Drivers;
 
 use Dibi;
 use Dibi\Helpers;
+use PgSql;
 
 
 /**
@@ -23,12 +24,13 @@ use Dibi\Helpers;
  *   - charset => character encoding to set (default is utf8)
  *   - persistent (bool) => try to find a persistent link?
  *   - resource (resource) => existing connection resource
+ *   - connect_type (int) => see pg_connect()
  */
 class PostgreDriver implements Dibi\Driver
 {
 	use Dibi\Strict;
 
-	/** @var resource */
+	/** @var resource|PgSql\Connection */
 	private $connection;
 
 	/** @var int|null  Affected rows */
@@ -63,18 +65,18 @@ class PostgreDriver implements Dibi\Driver
 				}
 			}
 
+			$connectType = $config['connect_type'] ?? PGSQL_CONNECT_FORCE_NEW;
+
 			set_error_handler(function (int $severity, string $message) use (&$error) {
 				$error = $message;
 			});
-			if (empty($config['persistent'])) {
-				$this->connection = pg_connect($string, PGSQL_CONNECT_FORCE_NEW);
-			} else {
-				$this->connection = pg_pconnect($string);
-			}
+			$this->connection = empty($config['persistent'])
+				? pg_connect($string, $connectType)
+				: pg_pconnect($string, $connectType);
 			restore_error_handler();
 		}
 
-		if (!is_resource($this->connection)) {
+		if (!is_resource($this->connection) && !$this->connection instanceof PgSql\Connection) {
 			throw new Dibi\DriverException($error ?: 'Connecting error.');
 		}
 
@@ -120,17 +122,18 @@ class PostgreDriver implements Dibi\Driver
 		if ($res === false) {
 			throw static::createException(pg_last_error($this->connection), null, $sql);
 
-		} elseif (is_resource($res)) {
+		} elseif (is_resource($res) || $res instanceof PgSql\Result) {
 			$this->affectedRows = Helpers::false2Null(pg_affected_rows($res));
 			if (pg_num_fields($res)) {
 				return $this->createResultDriver($res);
 			}
 		}
+
 		return null;
 	}
 
 
-	public static function createException(string $message, $code = null, string $sql = null): Dibi\DriverException
+	public static function createException(string $message, $code = null, ?string $sql = null): Dibi\DriverException
 	{
 		if ($code === null && preg_match('#^ERROR:\s+(\S+):\s*#', $message, $m)) {
 			$code = $m[1];
@@ -169,12 +172,9 @@ class PostgreDriver implements Dibi\Driver
 	 */
 	public function getInsertId(?string $sequence): ?int
 	{
-		if ($sequence === null) {
-			// PostgreSQL 8.1 is needed
-			$res = $this->query('SELECT LASTVAL()');
-		} else {
-			$res = $this->query("SELECT CURRVAL('$sequence')");
-		}
+		$res = $sequence === null
+			? $this->query('SELECT LASTVAL()') // PostgreSQL 8.1 is needed
+			: $this->query("SELECT CURRVAL('$sequence')");
 
 		if (!$res) {
 			return null;
@@ -189,9 +189,9 @@ class PostgreDriver implements Dibi\Driver
 	 * Begins a transaction (if supported).
 	 * @throws Dibi\DriverException
 	 */
-	public function begin(string $savepoint = null): void
+	public function begin(?string $savepoint = null): void
 	{
-		$this->query($savepoint ? "SAVEPOINT $savepoint" : 'START TRANSACTION');
+		$this->query($savepoint ? "SAVEPOINT {$this->escapeIdentifier($savepoint)}" : 'START TRANSACTION');
 	}
 
 
@@ -199,9 +199,9 @@ class PostgreDriver implements Dibi\Driver
 	 * Commits statements in a transaction.
 	 * @throws Dibi\DriverException
 	 */
-	public function commit(string $savepoint = null): void
+	public function commit(?string $savepoint = null): void
 	{
-		$this->query($savepoint ? "RELEASE SAVEPOINT $savepoint" : 'COMMIT');
+		$this->query($savepoint ? "RELEASE SAVEPOINT {$this->escapeIdentifier($savepoint)}" : 'COMMIT');
 	}
 
 
@@ -209,9 +209,9 @@ class PostgreDriver implements Dibi\Driver
 	 * Rollback changes in a transaction.
 	 * @throws Dibi\DriverException
 	 */
-	public function rollback(string $savepoint = null): void
+	public function rollback(?string $savepoint = null): void
 	{
-		$this->query($savepoint ? "ROLLBACK TO SAVEPOINT $savepoint" : 'ROLLBACK');
+		$this->query($savepoint ? "ROLLBACK TO SAVEPOINT {$this->escapeIdentifier($savepoint)}" : 'ROLLBACK');
 	}
 
 
@@ -230,7 +230,9 @@ class PostgreDriver implements Dibi\Driver
 	 */
 	public function getResource()
 	{
-		return is_resource($this->connection) ? $this->connection : null;
+		return is_resource($this->connection) || $this->connection instanceof PgSql\Connection
+			? $this->connection
+			: null;
 	}
 
 
@@ -261,18 +263,20 @@ class PostgreDriver implements Dibi\Driver
 	 */
 	public function escapeText(string $value): string
 	{
-		if (!is_resource($this->connection)) {
+		if (!$this->getResource()) {
 			throw new Dibi\Exception('Lost connection to server.');
 		}
+
 		return "'" . pg_escape_string($this->connection, $value) . "'";
 	}
 
 
 	public function escapeBinary(string $value): string
 	{
-		if (!is_resource($this->connection)) {
+		if (!$this->getResource()) {
 			throw new Dibi\Exception('Lost connection to server.');
 		}
+
 		return "'" . pg_escape_bytea($this->connection, $value) . "'";
 	}
 
@@ -328,9 +332,11 @@ class PostgreDriver implements Dibi\Driver
 		if ($limit < 0 || $offset < 0) {
 			throw new Dibi\NotSupportedException('Negative offset or limit.');
 		}
+
 		if ($limit !== null) {
 			$sql .= ' LIMIT ' . $limit;
 		}
+
 		if ($offset) {
 			$sql .= ' OFFSET ' . $offset;
 		}

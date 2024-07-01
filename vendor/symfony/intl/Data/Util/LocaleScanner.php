@@ -40,15 +40,13 @@ class LocaleScanner
      */
     public function scanLocales(string $sourceDir): array
     {
-        $locales = glob($sourceDir.'/*.txt', GLOB_NOSORT);
+        $locales = glob($sourceDir.'/*.txt', \GLOB_NOSORT);
 
         // Remove file extension and sort
         array_walk($locales, function (&$locale) { $locale = basename($locale, '.txt'); });
 
         // Remove non-locales
-        $locales = array_filter($locales, function ($locale) {
-            return preg_match('/^[a-z]{2}(_.+)?$/', $locale);
-        });
+        $locales = array_filter($locales, fn ($locale) => preg_match('/^[a-z]{2}(_.+)?$/', $locale));
 
         sort($locales);
 

@@ -54,6 +54,7 @@ class Result
 		foreach ($this->columns as $column) {
 			$res[] = $fullNames ? $column->getFullName() : $column->getName();
 		}
+
 		return $res;
 	}
 
@@ -82,7 +83,9 @@ class Result
 	{
 		if ($this->columns === null) {
 			$this->columns = [];
-			$reflector = $this->driver instanceof Dibi\Reflector ? $this->driver : null;
+			$reflector = $this->driver instanceof Dibi\Reflector
+				? $this->driver
+				: null;
 			foreach ($this->driver->getResultColumns() as $info) {
 				$this->columns[] = $this->names[strtolower($info['name'])] = new Column($reflector, $info);
 			}

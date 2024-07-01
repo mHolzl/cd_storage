@@ -48,6 +48,7 @@ class ResultIterator implements \Iterator, \Countable
 	 * Returns the key of the current element.
 	 * @return mixed
 	 */
+	#[\ReturnTypeWillChange]
 	public function key()
 	{
 		return $this->pointer;
@@ -58,6 +59,7 @@ class ResultIterator implements \Iterator, \Countable
 	 * Returns the current element.
 	 * @return mixed
 	 */
+	#[\ReturnTypeWillChange]
 	public function current()
 	{
 		return $this->row;

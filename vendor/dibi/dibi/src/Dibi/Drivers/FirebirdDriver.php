@@ -62,11 +62,9 @@ class FirebirdDriver implements Dibi\Driver
 				'buffers' => 0,
 			];
 
-			if (empty($config['persistent'])) {
-				$this->connection = @ibase_connect($config['database'], $config['username'], $config['password'], $config['charset'], $config['buffers']); // intentionally @
-			} else {
-				$this->connection = @ibase_pconnect($config['database'], $config['username'], $config['password'], $config['charset'], $config['buffers']); // intentionally @
-			}
+			$this->connection = empty($config['persistent'])
+				? @ibase_connect($config['database'], $config['username'], $config['password'], $config['charset'], $config['buffers']) // intentionally @
+				: @ibase_pconnect($config['database'], $config['username'], $config['password'], $config['charset'], $config['buffers']); // intentionally @
 
 			if (!is_resource($this->connection)) {
 				throw new Dibi\DriverException(ibase_errmsg(), ibase_errcode());
@@ -90,21 +88,23 @@ class FirebirdDriver implements Dibi\Driver
 	 */
 	public function query(string $sql): ?Dibi\ResultDriver
 	{
-		$resource = $this->inTransaction ? $this->transaction : $this->connection;
+		$resource = $this->inTransaction
+			? $this->transaction
+			: $this->connection;
 		$res = ibase_query($resource, $sql);
 
 		if ($res === false) {
-			if (ibase_errcode() == self::ERROR_EXCEPTION_THROWN) {
+			if (ibase_errcode() === self::ERROR_EXCEPTION_THROWN) {
 				preg_match('/exception (\d+) (\w+) (.*)/i', ibase_errmsg(), $match);
 				throw new Dibi\ProcedureException($match[3], $match[1], $match[2], $sql);
 
 			} else {
 				throw new Dibi\DriverException(ibase_errmsg(), ibase_errcode(), $sql);
 			}
-
 		} elseif (is_resource($res)) {
 			return $this->createResultDriver($res);
 		}
+
 		return null;
 	}
 
@@ -131,11 +131,12 @@ class FirebirdDriver implements Dibi\Driver
 	 * Begins a transaction (if supported).
 	 * @throws Dibi\DriverException
 	 */
-	public function begin(string $savepoint = null): void
+	public function begin(?string $savepoint = null): void
 	{
 		if ($savepoint !== null) {
 			throw new Dibi\NotSupportedException('Savepoints are not supported in Firebird/Interbase.');
 		}
+
 		$this->transaction = ibase_trans($this->getResource());
 		$this->inTransaction = true;
 	}
@@ -145,7 +146,7 @@ class FirebirdDriver implements Dibi\Driver
 	 * Commits statements in a transaction.
 	 * @throws Dibi\DriverException
 	 */
-	public function commit(string $savepoint = null): void
+	public function commit(?string $savepoint = null): void
 	{
 		if ($savepoint !== null) {
 			throw new Dibi\NotSupportedException('Savepoints are not supported in Firebird/Interbase.');
@@ -163,7 +164,7 @@ class FirebirdDriver implements Dibi\Driver
 	 * Rollback changes in a transaction.
 	 * @throws Dibi\DriverException
 	 */
-	public function rollback(string $savepoint = null): void
+	public function rollback(?string $savepoint = null): void
 	{
 		if ($savepoint !== null) {
 			throw new Dibi\NotSupportedException('Savepoints are not supported in Firebird/Interbase.');

@@ -1,8 +1,8 @@
 <?php
   require_once('engine/_init.php');
-  $album_id = intval($_GET['aid']);
-  if(album_exist($album_id)){
-    $data = album_detail_data($album_id);
-    echo  $twig->load('album_detail.html.twig')->render($data);  
+  $patient_id = intval($_GET['pid']);
+  if(patient_exist($patient_id)){
+    $data = patient_detail_data($patient_id);
+    echo  $twig->load('patient_detail.html.twig')->render($data);  
   }
 ?>

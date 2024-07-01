@@ -25,6 +25,7 @@ declare(strict_types=1);
  * @method static void begin(string $savepoint = null)
  * @method static void commit(string $savepoint = null)
  * @method static void rollback(string $savepoint = null)
+ * @method static mixed transaction(callable $callback)
  * @method static Dibi\Reflection\Database getDatabaseInfo()
  * @method static Dibi\Fluent command()
  * @method static Dibi\Fluent select(...$args)
@@ -43,8 +44,7 @@ class dibi
 		IDENTIFIER = 'n';
 
 	/** version */
-	public const
-		VERSION = '4.1.3';
+	public const VERSION = '4.2.8';
 
 	/** sorting order */
 	public const
@@ -75,7 +75,7 @@ class dibi
 	 */
 	final public function __construct()
 	{
-		throw new LogicException('Cannot instantiate static class ' . get_class($this));
+		throw new LogicException('Cannot instantiate static class ' . static::class);
 	}
 
 
@@ -106,7 +106,7 @@ class dibi
 	 * Retrieve active connection.
 	 * @throws Dibi\Exception
 	 */
-	public static function getConnection(string $name = null): Dibi\Connection
+	public static function getConnection(?string $name = null): Dibi\Connection
 	{
 		if ($name === null) {
 			if (self::$connection === null) {
@@ -162,7 +162,7 @@ class dibi
 	/**
 	 * Strips microseconds part.
 	 */
-	public static function stripMicroseconds(\DateTimeInterface $dt): \DateTimeInterface
+	public static function stripMicroseconds(DateTimeInterface $dt): DateTimeInterface
 	{
 		$class = get_class($dt);
 		return new $class($dt->format('Y-m-d H:i:s'), $dt->getTimezone());

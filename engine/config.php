@@ -1,6 +1,6 @@
 <?php
 //database constants
-  define('db_NAME', 'cd_storage');
+  define('db_NAME', 'energomed');
   define('db_USER', 'root');
   define('db_PASS', '');
   

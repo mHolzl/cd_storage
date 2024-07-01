@@ -21884,7 +21884,7 @@ return jQuery;
 			 *      } );
 			 *    } );
 			 */
-			"sInfo": "Showing _START_ to _END_ of _TOTAL_ entries",
+			"sInfo": "Показано з _START_  по _END_ із _TOTAL_ записів",
 	
 	
 			/**

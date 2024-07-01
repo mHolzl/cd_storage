@@ -19,7 +19,7 @@ class Result implements IDataSource
 {
 	use Strict;
 
-	/** @var ResultDriver */
+	/** @var ResultDriver|null */
 	private $driver;
 
 	/** @var array  Translate table */
@@ -41,10 +41,12 @@ class Result implements IDataSource
 	private $formats = [];
 
 
-	public function __construct(ResultDriver $driver)
+	public function __construct(ResultDriver $driver, bool $normalize = true)
 	{
 		$this->driver = $driver;
-		$this->detectTypes();
+		if ($normalize) {
+			$this->detectTypes();
+		}
 	}
 
 
@@ -83,7 +85,9 @@ class Result implements IDataSource
 	 */
 	final public function seek(int $row): bool
 	{
-		return ($row !== 0 || $this->fetched) ? $this->getResultDriver()->seek($row) : true;
+		return ($row !== 0 || $this->fetched)
+			? $this->getResultDriver()->seek($row)
+			: true;
 	}
 
 
@@ -166,6 +170,7 @@ class Result implements IDataSource
 		if ($row === null) {
 			return null;
 		}
+
 		$this->fetched = true;
 		$this->normalize($row);
 		if ($this->rowFactory) {
@@ -173,6 +178,7 @@ class Result implements IDataSource
 		} elseif ($this->rowClass) {
 			return new $this->rowClass($row);
 		}
+
 		return $row;
 	}
 
@@ -187,6 +193,7 @@ class Result implements IDataSource
 		if ($row === null) {
 			return null;
 		}
+
 		$this->fetched = true;
 		$this->normalize($row);
 		return reset($row);
@@ -197,9 +204,9 @@ class Result implements IDataSource
 	 * Fetches all records from table.
 	 * @return Row[]|array[]
 	 */
-	final public function fetchAll(int $offset = null, int $limit = null): array
+	final public function fetchAll(?int $offset = null, ?int $limit = null): array
 	{
-		$limit = $limit === null ? -1 : $limit;
+		$limit = $limit ?? -1;
 		$this->seek($offset ?: 0);
 		$row = $this->fetch();
 		if (!$row) {
@@ -211,6 +218,7 @@ class Result implements IDataSource
 			if ($limit === 0) {
 				break;
 			}
+
 			$limit--;
 			$data[] = $row;
 		} while ($row = $this->fetch());
@@ -242,6 +250,9 @@ class Result implements IDataSource
 
 		$data = null;
 		$assoc = preg_split('#(\[\]|->|=|\|)#', $assoc, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+		if (!$assoc) {
+			throw new \InvalidArgumentException("Invalid descriptor '$assoc'.");
+		}
 
 		// check columns
 		foreach ($assoc as $as) {
@@ -280,7 +291,6 @@ class Result implements IDataSource
 					} else {
 						$x = &$x->{$assoc[$i + 1]};
 					}
-
 				} elseif ($as !== '|') { // associative-array node
 					$x = &$x[(string) $row->$as];
 				}
@@ -292,6 +302,7 @@ class Result implements IDataSource
 		} while ($row = $this->fetch());
 
 		unset($x);
+		/** @var mixed[] $data */
 		return $data;
 	}
 
@@ -337,7 +348,6 @@ class Result implements IDataSource
 					} else {
 						$x = &$x[$assoc[$i + 1]];
 					}
-
 				} elseif ($as === '@') { // "object" node
 					if ($x === null) {
 						$x = clone $row;
@@ -346,18 +356,15 @@ class Result implements IDataSource
 					} else {
 						$x = &$x->{$assoc[$i + 1]};
 					}
-
 				} else { // associative-array node
 					$x = &$x[(string) $row->$as];
 				}
 			}
 
 			if ($x === null) { // build leaf
-				if ($leaf === '=') {
-					$x = $row->toArray();
-				} else {
-					$x = $row;
-				}
+				$x = $leaf === '='
+					? $row->toArray()
+					: $row;
 			}
 		} while ($row = $this->fetch());
 
@@ -370,7 +377,7 @@ class Result implements IDataSource
 	 * Fetches all records from table like $key => $value pairs.
 	 * @throws \InvalidArgumentException
 	 */
-	final public function fetchPairs(string $key = null, string $value = null): array
+	final public function fetchPairs(?string $key = null, ?string $value = null): array
 	{
 		$this->seek(0);
 		$row = $this->fetch();
@@ -392,6 +399,7 @@ class Result implements IDataSource
 				do {
 					$data[] = $row[$key];
 				} while ($row = $this->fetch());
+
 				return $data;
 			}
 
@@ -406,6 +414,7 @@ class Result implements IDataSource
 				do {
 					$data[] = $row[$value];
 				} while ($row = $this->fetch());
+
 				return $data;
 			}
 
@@ -449,9 +458,14 @@ class Result implements IDataSource
 			if (!isset($row[$key])) { // null
 				continue;
 			}
-			$value = $row[$key];
 
-			if ($type === Type::TEXT) {
+			$value = $row[$key];
+			$format = $this->formats[$type] ?? null;
+
+			if ($type === null || $format === 'native') {
+				$row[$key] = $value;
+
+			} elseif ($type === Type::TEXT) {
 				$row[$key] = (string) $value;
 
 			} elseif ($type === Type::INTEGER) {
@@ -468,9 +482,11 @@ class Result implements IDataSource
 				} elseif ($p !== false && $e !== false) {
 					$value = rtrim($value, '.');
 				}
+
 				if ($value === '' || $value[0] === '.') {
 					$value = '0' . $value;
 				}
+
 				$row[$key] = $value === str_replace(',', '.', (string) ($float = (float) $value))
 					? $float
 					: $value;
@@ -479,31 +495,29 @@ class Result implements IDataSource
 				$row[$key] = ((bool) $value) && $value !== 'f' && $value !== 'F';
 
 			} elseif ($type === Type::DATETIME || $type === Type::DATE || $type === Type::TIME) {
-				if ($value && substr((string) $value, 0, 3) !== '000') { // '', null, false, '0000-00-00', ...
+				if ($value && substr((string) $value, 0, 7) !== '0000-00') { // '', null, false, '0000-00-00', ...
 					$value = new DateTime($value);
-					$row[$key] = empty($this->formats[$type]) ? $value : $value->format($this->formats[$type]);
+					$row[$key] = $format ? $value->format($format) : $value;
 				} else {
 					$row[$key] = null;
 				}
-
 			} elseif ($type === Type::TIME_INTERVAL) {
 				preg_match('#^(-?)(\d+)\D(\d+)\D(\d+)\z#', $value, $m);
-				$row[$key] = new \DateInterval("PT$m[2]H$m[3]M$m[4]S");
-				$row[$key]->invert = (int) (bool) $m[1];
+				$value = new \DateInterval("PT$m[2]H$m[3]M$m[4]S");
+				$value->invert = (int) (bool) $m[1];
+				$row[$key] = $format ? $value->format($format) : $value;
 
 			} elseif ($type === Type::BINARY) {
-				$row[$key] = is_string($value) ? $this->getResultDriver()->unescapeBinary($value) : $value;
+				$row[$key] = is_string($value)
+					? $this->getResultDriver()->unescapeBinary($value)
+					: $value;
 
 			} elseif ($type === Type::JSON) {
-				if ($this->formats[$type] === 'string') {
+				if ($format === 'string') { // back compatibility with 'native'
 					$row[$key] = $value;
 				} else {
-					$row[$key] = json_decode($value, $this->formats[$type] === 'array');
+					$row[$key] = json_decode($value, $format === 'array');
 				}
-
-			} elseif ($type === null) {
-				$row[$key] = $value;
-
 			} else {
 				throw new \RuntimeException('Unexpected type ' . $type);
 			}
@@ -541,11 +555,21 @@ class Result implements IDataSource
 
 
 	/**
-	 * Sets date format.
+	 * Sets type format.
 	 */
 	final public function setFormat(string $type, ?string $format): self
 	{
 		$this->formats[$type] = $format;
+		return $this;
+	}
+
+
+	/**
+	 * Sets type formats.
+	 */
+	final public function setFormats(array $formats): self
+	{
+		$this->formats = $formats;
 		return $this;
 	}
 
@@ -570,6 +594,7 @@ class Result implements IDataSource
 		if ($this->meta === null) {
 			$this->meta = new Reflection\Result($this->getResultDriver());
 		}
+
 		return $this->meta;
 	}
 

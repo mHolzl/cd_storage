@@ -1,73 +1,58 @@
 <?php
-  /*** checks if album exists in DB ***/
-  function album_exist($album_id) {
-    return dibi::fetch('SELECT 1 FROM album WHERE album.id = %i', $album_id);
+  /*** checks if record exists in DB ***/
+  function patient_exist($patient_id) {
+    return dibi::fetch('SELECT 1 FROM patient WHERE patient.id = %i', $patient_id);
   }
 
   
   /*** returns list of albums ***/ 
-  function album_list(){
+  function patient_list(){
     $sql = [
-      'SELECT artist.name artist_name, album.id album_id, album.name album_name, released, price, ranking
-         FROM album
-    LEFT JOIN artist ON artist.id = album.artist_id
-     ORDER BY artist_name',
+      'SELECT patient.id patient_id, patient.identification, patient.firstname, patient.surname, patient.age, patient.gender, patient.bloodtype, patient.ranking
+         FROM patient
+     ORDER BY surname',
     ];  
     return dibi::fetchAll($sql);
   }
 
 
   /*** returns basic album info by album_id ***/ 
-  function album_by_id($album_id){
+  function patient_by_id($patient_id){
     $sql = [
-      'SELECT artist.name artist_name, album.artist_id artist_id, album.id album_id, album.name album_name, released, price, ranking
-         FROM album
-    LEFT JOIN artist ON artist.id = album.artist_id
-        WHERE album.id = %i',
-      $album_id,
+      'SELECT *
+         FROM patient
+        WHERE patient.id = %i',
+      $patient_id,
     ];
     return dibi::fetch($sql);
   }
 
 
   /*** returns album genres by album_id ***/  
-  function album_genres($album_id){
+  function patient_tags($patient_id){
     $sql = [
-      'SELECT g.name FROM album_genre ga JOIN genre g ON g.id = ga.genre_id WHERE ga.album_id = %i ORDER BY name',
-      $album_id
+      'SELECT t.name, t.name_ua, t.fa_icon, t.css_class, t.reputation_weight FROM patient_tag pt JOIN tag t ON t.id = pt.tag_id WHERE pt.patient_id = %i ORDER BY name',
+      $patient_id
     ];
     return dibi::fetchAll($sql);
   }
 
 
-  /*** returns album tracks by album_id ***/
-  function album_tracklist($album_id){
-    $sql = [
-      'SELECT artist.name artist_name, track.artist_id, track.name track_name, duration, `order`
-         FROM track
-    LEFT JOIN artist ON artist.id = track.artist_id
-        WHERE track.album_id = %i
-     ORDER BY `order` ASC',
-      $album_id,
-    ];
-    return dibi::fetchAll($sql);
-  }
 
 
   /*** returns all $data required for album detail rendering ***/
-  function album_detail_data($album_id){
-    $data['album_detail'] = album_by_id($album_id);
-    $data['album_detail']['genres'] = album_genres($album_id);
-    $data['album_detail']['tracklist'] = album_tracklist($album_id);
+  function patient_detail_data($patient_id){
+    $data['patient_detail'] = patient_by_id($patient_id);
+    $data['patient_detail']['tags'] = patient_tags($patient_id);
     return $data;
   }
 
 
   /*** returns all $data required for album list rendering ***/
-  function album_list_data(){
-    $data['albums_list'] = album_list();
-    foreach ($data['albums_list'] as $key=>$value){
-      $data['albums_list'][$key]['genres'] = album_genres($data['albums_list'][$key]['album_id']);
+  function patient_list_data(){
+    $data['patient_list'] = patient_list();
+    foreach ($data['patient_list'] as $key=>$value){
+      $data['patient_list'][$key]['tags'] = patient_tags($data['patient_list'][$key]['patient_id']);
     }
     return $data;
   }

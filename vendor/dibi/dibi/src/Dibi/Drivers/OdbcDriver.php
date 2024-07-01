@@ -54,11 +54,9 @@ class OdbcDriver implements Dibi\Driver
 				'dsn' => ini_get('odbc.default_db'),
 			];
 
-			if (empty($config['persistent'])) {
-				$this->connection = @odbc_connect($config['dsn'], $config['username'] ?? '', $config['password'] ?? ''); // intentionally @
-			} else {
-				$this->connection = @odbc_pconnect($config['dsn'], $config['username'] ?? '', $config['password'] ?? ''); // intentionally @
-			}
+			$this->connection = empty($config['persistent'])
+				? @odbc_connect($config['dsn'], $config['username'] ?? '', $config['password'] ?? '') // intentionally @
+				: @odbc_pconnect($config['dsn'], $config['username'] ?? '', $config['password'] ?? ''); // intentionally @
 		}
 
 		if (!is_resource($this->connection)) {
@@ -94,8 +92,11 @@ class OdbcDriver implements Dibi\Driver
 
 		} elseif (is_resource($res)) {
 			$this->affectedRows = Dibi\Helpers::false2Null(odbc_num_rows($res));
-			return odbc_num_fields($res) ? $this->createResultDriver($res) : null;
+			return odbc_num_fields($res)
+				? $this->createResultDriver($res)
+				: null;
 		}
+
 		return null;
 	}
 
@@ -122,9 +123,9 @@ class OdbcDriver implements Dibi\Driver
 	 * Begins a transaction (if supported).
 	 * @throws Dibi\DriverException
 	 */
-	public function begin(string $savepoint = null): void
+	public function begin(?string $savepoint = null): void
 	{
-		if (!odbc_autocommit($this->connection, 0/*false*/)) {
+		if (!odbc_autocommit($this->connection, PHP_VERSION_ID < 80000 ? 0 : false)) {
 			throw new Dibi\DriverException(odbc_errormsg($this->connection) . ' ' . odbc_error($this->connection));
 		}
 	}
@@ -134,12 +135,13 @@ class OdbcDriver implements Dibi\Driver
 	 * Commits statements in a transaction.
 	 * @throws Dibi\DriverException
 	 */
-	public function commit(string $savepoint = null): void
+	public function commit(?string $savepoint = null): void
 	{
 		if (!odbc_commit($this->connection)) {
 			throw new Dibi\DriverException(odbc_errormsg($this->connection) . ' ' . odbc_error($this->connection));
 		}
-		odbc_autocommit($this->connection, 1/*true*/);
+
+		odbc_autocommit($this->connection, PHP_VERSION_ID < 80000 ? 1 : true);
 	}
 
 
@@ -147,12 +149,13 @@ class OdbcDriver implements Dibi\Driver
 	 * Rollback changes in a transaction.
 	 * @throws Dibi\DriverException
 	 */
-	public function rollback(string $savepoint = null): void
+	public function rollback(?string $savepoint = null): void
 	{
 		if (!odbc_rollback($this->connection)) {
 			throw new Dibi\DriverException(odbc_errormsg($this->connection) . ' ' . odbc_error($this->connection));
 		}
-		odbc_autocommit($this->connection, 1/*true*/);
+
+		odbc_autocommit($this->connection, PHP_VERSION_ID < 80000 ? 1 : true);
 	}
 
 
